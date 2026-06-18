@@ -168,21 +168,13 @@ class RuleEngine:
         self._index = idx
         self._built = True
 
-    async def evaluate(
-        self,
-        answers: dict[str, Any],
-        tax_year: int,
-    ) -> list[dict]:
+    def _match_sync(self, answers: dict[str, Any]) -> tuple[list[dict], set[tuple[str, str]]]:
         """
-        Evaluate answers against rules.
+        CPU-bound rule matching — runs in a thread pool via anyio.to_thread.run_sync().
 
-        Returns a sorted list of form matches:
-            [{form_source, form_number, priority, note, form_details}]
-        sorted required → likely → maybe.
+        Iterates the in-memory index without touching any async resources.
+        Returns (matched_rules, seen_keys).
         """
-        if not self._built:
-            await self.build()
-
         matched: list[dict] = []
         seen: set[tuple[str, str]] = set()
 
@@ -204,6 +196,34 @@ class RuleEngine:
                 if key not in seen:
                     seen.add(key)
                     matched.append(dict(rule))
+
+        return matched, seen
+
+    async def evaluate(
+        self,
+        answers: dict[str, Any],
+        tax_year: int,
+    ) -> list[dict]:
+        """
+        Evaluate answers against rules.
+
+        Returns a sorted list of form matches:
+            [{form_source, form_number, priority, note, form_details}]
+        sorted required → likely → maybe.
+
+        The CPU-bound rule-matching step is offloaded to a thread pool via
+        anyio.to_thread.run_sync() so the async event loop is never blocked,
+        even for large rule sets with thousands of questions.
+        """
+        import anyio
+
+        if not self._built:
+            await self.build()
+
+        # Offload CPU-intensive rule matching to a worker thread
+        matched, seen = await anyio.to_thread.run_sync(
+            lambda: self._match_sync(answers)
+        )
 
         # Attach form details
         async with get_db() as db:
