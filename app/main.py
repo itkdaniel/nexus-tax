@@ -52,21 +52,29 @@ def _make_lifespan(settings: Settings):
     async def lifespan(app: FastAPI):
         logger.info("Starting nexus-tax", port=settings.port, debug=settings.debug)
 
-        # 0. Wire services to injected settings
+        # 0. Warn loudly in production if the default JWT secret is in use
+        _DEFAULT_SECRET = "change-me-in-production"
+        if not settings.debug and settings.jwt_secret == _DEFAULT_SECRET:
+            logger.warning(
+                "INSECURE CONFIGURATION: jwt_secret is the default placeholder. "
+                "Set JWT_SECRET env var before exposing this service.",
+            )
+
+        # 1. Wire services to injected settings
         configure_engine(settings)
         configure_auth(settings)
 
-        # 1. Ensure tables exist (dev/test — production uses Alembic)
+        # 2. Ensure tables exist (dev/test — production uses Alembic)
         await create_tables()
 
-        # 2. Seed tax data for the configured default year
+        # 3. Seed tax data for the configured default year
         from app.seed import seed_tax_data
         try:
             await seed_tax_data(settings.default_tax_year)
         except Exception as exc:
             logger.warning("Seed data warning (may already exist)", error=str(exc))
 
-        # 3. Pre-build rule engine index
+        # 4. Pre-build rule engine index
         from app.engine import get_rule_engine
         try:
             await get_rule_engine().build()
@@ -74,7 +82,7 @@ def _make_lifespan(settings: Settings):
         except Exception as exc:
             logger.warning("Rule engine build deferred (no data yet?)", error=str(exc))
 
-        # 4. Start annual scheduler (skip in test mode)
+        # 5. Start annual scheduler (skip in test/debug mode)
         scheduler = None
         if not settings.debug:
             from app.scheduler import init_scheduler
@@ -163,7 +171,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                 {"method": "POST", "path": "/v1/tax/sessions/{id}/complete",       "auth": False, "description": "Compute required forms, mark complete"},
                 {"method": "GET",  "path": "/v1/tax/sessions/{id}/required-forms", "auth": False, "description": "Fetch required forms for a completed session"},
                 {"method": "GET",  "path": "/v1/tax/periods",                      "auth": False, "description": "List all tax periods"},
-                {"method": "POST", "path": "/v1/tax/admin/seed-year",              "auth": True,  "description": "Manual seed trigger (admin)"},
+                {"method": "POST", "path": "/v1/tax/admin/seed-year",              "auth": True,  "description": "Seed / inflate a tax year (admin)"},
+                {"method": "POST", "path": "/v1/tax/admin/update-year",            "auth": True,  "description": "Alias for seed-year (admin)"},
             ],
         )
 
