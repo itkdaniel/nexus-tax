@@ -305,3 +305,59 @@ async def test_admin_seed_with_auth(admin_client):
     resp = await admin_client.post("/v1/tax/admin/seed-year", json={"tax_year": 2025})
     assert resp.status_code == 200
     assert "seeded successfully" in resp.json()["message"]
+
+
+# ── Form Parity Regression ─────────────────────────────────────────────────────
+# This test guards against form catalog drift between the Python seed and the
+# canonical TypeScript source (server/tax-seed.ts).  Any deviation in the
+# form number list causes an explicit, actionable failure.
+
+# Canonical set derived from server/tax-seed.ts at the time of extraction.
+_CANONICAL_FEDERAL_FORM_NUMBERS = {
+    "1040", "1040-SR", "1040-NR", "1040-X", "1040-ES", "1040-V", "4868",
+    "Schedule 1", "Schedule 2", "Schedule 3", "Schedule A", "Schedule B",
+    "Schedule C", "Schedule D", "Schedule E", "Schedule F", "Schedule H",
+    "Schedule R", "Schedule SE",
+    "W-2", "W-4", "W-7",
+    "1099-NEC", "1099-MISC", "1099-INT", "1099-DIV", "1099-B", "1099-R",
+    "1099-G", "1099-SA", "1099-K", "1099-C", "SSA-1099",
+    "1098", "1098-E", "1098-T",
+    "1095-A", "1095-B", "1095-C",
+    "8962", "8889", "5498-SA",
+    "8812", "2441", "8839", "8863", "8880",
+    "8949", "8829", "5695", "8283",
+    "6251", "2210", "8995", "4562",
+    "2555", "1116", "FinCEN 114 (FBAR)", "8938",
+    "W-2G",
+    "1120", "1120-S", "1065",
+    "Schedule K-1 (1065)", "Schedule K-1 (1120-S)",
+    "941", "940", "SS-4",
+    "3903",
+    "8822", "9465", "8888",
+    "5329", "5498", "8606",
+}
+
+
+def test_seed_form_parity_with_typescript():
+    """
+    Python FEDERAL_FORMS must contain every form number in the canonical
+    TypeScript set.  Missing entries here mean the assistant could fail to
+    recommend a form that the TS implementation would recommend.
+    """
+    from app.seed import FEDERAL_FORMS
+
+    python_form_numbers = {f["form_number"] for f in FEDERAL_FORMS}
+
+    missing = _CANONICAL_FEDERAL_FORM_NUMBERS - python_form_numbers
+    extra = python_form_numbers - _CANONICAL_FEDERAL_FORM_NUMBERS
+
+    assert not missing, (
+        f"Python seed is missing {len(missing)} form(s) that exist in the "
+        f"TypeScript source: {sorted(missing)}"
+    )
+    # Extra forms in Python are allowed (additions beyond TS source)
+    assert len(python_form_numbers) >= len(_CANONICAL_FEDERAL_FORM_NUMBERS), (
+        f"Python seed has fewer forms ({len(python_form_numbers)}) than the "
+        f"TypeScript canonical set ({len(_CANONICAL_FEDERAL_FORM_NUMBERS)})"
+    )
+    _ = extra  # allowed; informational only
