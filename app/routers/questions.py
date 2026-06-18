@@ -13,7 +13,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import TaxQuestionModel, TaxQuestionOut
 
-router = APIRouter(prefix="/v1/questions", tags=["questions"])
+router = APIRouter(prefix="/v1/tax/questions", tags=["questions"])
 
 
 @router.get("", response_model=list[TaxQuestionOut])
