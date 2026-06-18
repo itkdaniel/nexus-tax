@@ -28,7 +28,7 @@ from app.models import (
 )
 from app.engine import calculate_tax
 
-router = APIRouter(prefix="/v1/rates", tags=["rates"])
+router = APIRouter(prefix="/v1/tax/rates", tags=["rates"])
 
 VALID_STATUSES = {"single", "mfj", "mfs", "hoh", "qw"}
 
@@ -112,7 +112,7 @@ async def get_special_rates(year: int):
 
 
 # ── Calculate endpoint (separate prefix) ─────────────────────────────────────
-calculate_router = APIRouter(prefix="/v1", tags=["calculate"])
+calculate_router = APIRouter(prefix="/v1/tax", tags=["calculate"])
 
 
 class CalculateRequest(BaseModel):
