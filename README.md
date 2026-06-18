@@ -21,22 +21,24 @@ Standalone tax assistant microservice for the NexusConsult portfolio.
 |--------|------|------|-------------|
 | GET | `/health` | — | Liveness probe |
 | GET | `/info` | — | Service metadata |
-| GET | `/v1/forms/federal` | — | List federal forms (`?category=`) |
-| GET | `/v1/forms/federal/{form_number}` | — | Get federal form by number |
-| GET | `/v1/forms/state` | — | List all state forms (`?code=CA`) |
-| GET | `/v1/forms/state/{state_code}` | — | Get forms for a state |
-| GET | `/v1/rates/{year}` | — | Full rate bundle (brackets + deductions + special) |
-| GET | `/v1/rates/{year}/brackets` | — | Tax brackets for year |
-| GET | `/v1/rates/{year}/deductions` | — | Standard deductions for year |
-| GET | `/v1/rates/{year}/special` | — | Special tax rates for year |
-| POST | `/v1/calculate` | — | Calculate federal income tax |
-| GET | `/v1/questions` | — | Questionnaire questions |
-| POST | `/v1/sessions` | — | Start a new session |
-| GET | `/v1/sessions/{id}` | — | Get session state |
-| PATCH | `/v1/sessions/{id}/answers` | — | Save answers progressively |
-| POST | `/v1/sessions/{id}/complete` | — | Compute required forms, mark complete |
-| GET | `/v1/periods` | — | List tax periods |
-| POST | `/v1/admin/seed-year` | Admin JWT | Manual seed trigger |
+| GET | `/v1/tax/forms/federal` | — | List federal forms (`?category=`) |
+| GET | `/v1/tax/forms/federal/{form_number}` | — | Get federal form by number |
+| GET | `/v1/tax/forms/state` | — | List all state forms (`?code=CA`) |
+| GET | `/v1/tax/forms/state/{state_code}` | — | Get forms for a state |
+| GET | `/v1/tax/rates/{year}` | — | Full rate bundle (brackets + deductions + special) |
+| GET | `/v1/tax/rates/{year}/brackets` | — | Tax brackets for year |
+| GET | `/v1/tax/rates/{year}/deductions` | — | Standard deductions for year |
+| GET | `/v1/tax/rates/{year}/special` | — | Special tax rates for year |
+| POST | `/v1/tax/calculate` | — | Calculate federal income tax |
+| GET | `/v1/tax/questions` | — | Questionnaire questions |
+| POST | `/v1/tax/sessions` | — | Start a new session |
+| GET | `/v1/tax/sessions/{id}` | — | Get session state |
+| PATCH | `/v1/tax/sessions/{id}/answers` | — | Save answers progressively |
+| POST | `/v1/tax/sessions/{id}/complete` | — | Compute required forms, mark complete |
+| GET | `/v1/tax/sessions/{id}/required-forms` | — | Fetch required forms (completed session) |
+| GET | `/v1/tax/periods` | — | List tax periods |
+| POST | `/v1/tax/admin/seed-year` | Admin JWT | Seed / inflate a tax year |
+| POST | `/v1/tax/admin/update-year` | Admin JWT | Alias for seed-year (contract name) |
 
 ## Quick Start
 
