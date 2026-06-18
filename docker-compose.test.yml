@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "pip install -r requirements-dev.txt &&
+             pytest tests/ -v --tb=short"
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:///:memory:
+      JWT_SECRET: test-secret-nexus-tax
+      DEBUG: "true"
+      DEFAULT_TAX_YEAR: "2024"
