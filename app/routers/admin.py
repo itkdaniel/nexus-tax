@@ -1,12 +1,13 @@
 """
 Admin router — tax period management and manual seed trigger.
 
-All endpoints require admin JWT (role == "admin").
+All admin endpoints require admin JWT (role == "admin").
 
 Endpoints:
-  GET  /v1/periods             list all tax periods
-  GET  /v1/periods/{year}      get a specific tax period
-  POST /v1/admin/seed-year     seed a specific tax year (manual trigger)
+  GET  /v1/tax/periods             list all tax periods
+  GET  /v1/tax/periods/{year}      get a specific tax period
+  POST /v1/tax/admin/seed-year     seed / inflate a specific tax year (canonical)
+  POST /v1/tax/admin/update-year   alias for seed-year (required contract name)
 """
 from __future__ import annotations
 
@@ -56,12 +57,8 @@ class SeedYearRequest(BaseModel):
     tax_year: int
 
 
-@admin_router.post("/seed-year")
-async def seed_year(req: SeedYearRequest, _: dict = Depends(require_admin)):
-    """
-    Manually trigger seeding for a specific tax year.
-    Idempotent — safe to call multiple times for the same year.
-    """
+async def _do_seed(req: SeedYearRequest) -> dict:
+    """Shared implementation for seed-year / update-year."""
     from app.seed import seed_tax_data
     from app.engine import reset_rule_engine
 
@@ -74,3 +71,21 @@ async def seed_year(req: SeedYearRequest, _: dict = Depends(require_admin)):
             detail={"error": str(exc), "code": "SEED_FAILED", "details": {}, "request_id": ""},
         )
     return {"message": f"Tax year {req.tax_year} seeded successfully."}
+
+
+@admin_router.post("/seed-year")
+async def seed_year(req: SeedYearRequest, _: dict = Depends(require_admin)):
+    """
+    Manually trigger seeding / inflation-adjustment for a specific tax year.
+    Idempotent — safe to call multiple times for the same year.
+    """
+    return await _do_seed(req)
+
+
+@admin_router.post("/update-year")
+async def update_year(req: SeedYearRequest, _: dict = Depends(require_admin)):
+    """
+    Alias for POST /seed-year — required contract name.
+    Seeds (or re-seeds) tax bracket/deduction data for the given year.
+    """
+    return await _do_seed(req)
