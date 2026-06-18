@@ -102,7 +102,7 @@ def service_running(test_client):
 
 @given(parsers.parse('I start a new session for tax year {year:d} as "{entity_type}"'))
 def start_session(test_client, aioloop, ctx, year, entity_type):
-    resp = _run(aioloop, test_client.post("/v1/sessions", json={"tax_year": year, "entity_type": entity_type}))
+    resp = _run(aioloop, test_client.post("/v1/tax/sessions", json={"tax_year": year, "entity_type": entity_type}))
     assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.text}"
     ctx["session_id"] = resp.json()["id"]
     ctx["answers"] = {}
@@ -112,7 +112,7 @@ def start_session(test_client, aioloop, ctx, year, entity_type):
 def answer_question(test_client, aioloop, ctx, key, value):
     ctx["answers"][key] = value
     resp = _run(aioloop, test_client.patch(
-        f"/v1/sessions/{ctx['session_id']}/answers",
+        f"/v1/tax/sessions/{ctx['session_id']}/answers",
         json={"answers": {key: value}},
     ))
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
@@ -123,7 +123,7 @@ def answer_question(test_client, aioloop, ctx, key, value):
 def save_incremental(test_client, aioloop, ctx, key, value):
     ctx["answers"][key] = value
     resp = _run(aioloop, test_client.patch(
-        f"/v1/sessions/{ctx['session_id']}/answers",
+        f"/v1/tax/sessions/{ctx['session_id']}/answers",
         json={"answers": {key: value}},
     ))
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
@@ -132,7 +132,7 @@ def save_incremental(test_client, aioloop, ctx, key, value):
 
 @when("I complete the session")
 def complete_session(test_client, aioloop, ctx):
-    resp = _run(aioloop, test_client.post(f"/v1/sessions/{ctx['session_id']}/complete"))
+    resp = _run(aioloop, test_client.post(f"/v1/tax/sessions/{ctx['session_id']}/complete"))
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
     ctx["completed_session"] = resp.json()
     ctx["last_response"] = resp
@@ -163,7 +163,7 @@ def answers_contain_both(ctx):
 @then("updating answers should return HTTP 409")
 def check_409(test_client, aioloop, ctx):
     resp = _run(aioloop, test_client.patch(
-        f"/v1/sessions/{ctx['session_id']}/answers",
+        f"/v1/tax/sessions/{ctx['session_id']}/answers",
         json={"answers": {"new_key": "new_val"}},
     ))
     assert resp.status_code == 409, f"Expected 409, got {resp.status_code}: {resp.text}"
@@ -173,7 +173,7 @@ def check_409(test_client, aioloop, ctx):
 
 @when(parsers.parse("I request the rate bundle for year {year:d}"))
 def get_rate_bundle(test_client, aioloop, ctx, year):
-    resp = _run(aioloop, test_client.get(f"/v1/rates/{year}"))
+    resp = _run(aioloop, test_client.get(f"/v1/tax/rates/{year}"))
     ctx["rate_resp"] = resp
     ctx["rate_data"] = resp.json()
 
@@ -197,7 +197,7 @@ def has_special(ctx):
 @when(parsers.parse('I calculate tax for income={income:d} filing_status="{status}" year={year:d}'))
 def calculate(test_client, aioloop, ctx, income, status, year):
     resp = _run(aioloop, test_client.post(
-        "/v1/calculate",
+        "/v1/tax/calculate",
         json={"income": income, "filing_status": status, "tax_year": year},
     ))
     ctx["calc_resp"] = resp
@@ -207,7 +207,7 @@ def calculate(test_client, aioloop, ctx, income, status, year):
 @when(parsers.parse('I calculate tax with invalid filing_status "{status}"'))
 def calculate_invalid(test_client, aioloop, ctx, status):
     resp = _run(aioloop, test_client.post(
-        "/v1/calculate",
+        "/v1/tax/calculate",
         json={"income": 50_000, "filing_status": status, "tax_year": 2024},
     ))
     ctx["calc_resp"] = resp
