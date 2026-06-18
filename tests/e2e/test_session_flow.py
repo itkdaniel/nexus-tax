@@ -28,7 +28,7 @@ import pytest
 async def test_e2e_w2_single_filer(client):
     """Full flow: W-2 single filer → 1040 required."""
     # Start session
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024})
     assert resp.status_code == 201
     sid = resp.json()["id"]
 
@@ -39,11 +39,11 @@ async def test_e2e_w2_single_filer(client):
         "has_w2": "yes",
         "health_insurance_source": "employer",
     }
-    resp = await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": answers})
+    resp = await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": answers})
     assert resp.status_code == 200
 
     # Complete
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     assert resp.status_code == 200
     session = resp.json()
 
@@ -64,15 +64,15 @@ async def test_e2e_w2_single_filer(client):
 @pytest.mark.asyncio
 async def test_e2e_self_employed_home_office(client):
     """Self-employed + home office → Schedule C, SE, 8829, 8995."""
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024, "entity_type": "individual"})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024, "entity_type": "individual"})
     sid = resp.json()["id"]
 
-    await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+    await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
         "entity_type": "individual",
         "has_self_employment": "yes",
         "has_home_office": "yes",
     }})
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     forms = {f["form_number"] for f in resp.json()["required_forms"]}
 
     assert "Schedule C" in forms
@@ -85,15 +85,15 @@ async def test_e2e_self_employed_home_office(client):
 @pytest.mark.asyncio
 async def test_e2e_investor_rental(client):
     """Capital gains + rental income → Schedule D, 8949, Schedule E."""
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024})
     sid = resp.json()["id"]
 
-    await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+    await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
         "entity_type": "individual",
         "has_investment_income": "yes",
         "has_rental_income": "yes",
     }})
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     forms = {f["form_number"] for f in resp.json()["required_forms"]}
 
     assert "Schedule D" in forms
@@ -107,14 +107,14 @@ async def test_e2e_investor_rental(client):
 @pytest.mark.asyncio
 async def test_e2e_c_corporation(client):
     """C corporation → Form 1120 required."""
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024, "entity_type": "business"})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024, "entity_type": "business"})
     sid = resp.json()["id"]
 
-    await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+    await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
         "entity_type": "business",
         "business_entity_type": "c_corp",
     }})
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     forms = {f["form_number"] for f in resp.json()["required_forms"]}
     assert "1120" in forms
 
@@ -124,15 +124,15 @@ async def test_e2e_c_corporation(client):
 @pytest.mark.asyncio
 async def test_e2e_foreign_income_and_accounts(client):
     """Foreign income + foreign accounts → 2555, 1116, FBAR."""
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024})
     sid = resp.json()["id"]
 
-    await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+    await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
         "entity_type": "individual",
         "has_foreign_income": "yes",
         "has_foreign_accounts": "yes",
     }})
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     forms = {f["form_number"] for f in resp.json()["required_forms"]}
 
     assert "2555" in forms
@@ -145,14 +145,14 @@ async def test_e2e_foreign_income_and_accounts(client):
 @pytest.mark.asyncio
 async def test_e2e_marketplace_insurance(client):
     """Marketplace insurance → 1095-A and 8962 required."""
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024})
     sid = resp.json()["id"]
 
-    await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+    await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
         "entity_type": "individual",
         "health_insurance_source": "marketplace",
     }})
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     forms = {f["form_number"] for f in resp.json()["required_forms"]}
     assert "1095-A" in forms
     assert "8962" in forms
@@ -163,15 +163,15 @@ async def test_e2e_marketplace_insurance(client):
 @pytest.mark.asyncio
 async def test_e2e_early_retirement_withdrawal(client):
     """Early retirement withdrawal → 1099-R and 5329."""
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024})
     sid = resp.json()["id"]
 
-    await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+    await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
         "entity_type": "individual",
         "has_retirement_income": "yes",
         "early_retirement_withdrawal": "yes",
     }})
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     forms = {f["form_number"] for f in resp.json()["required_forms"]}
     assert "1099-R" in forms
     assert "5329" in forms
@@ -181,7 +181,7 @@ async def test_e2e_early_retirement_withdrawal(client):
 
 @pytest.mark.asyncio
 async def test_e2e_session_not_found(client):
-    resp = await client.get("/v1/sessions/no-such-session-id")
+    resp = await client.get("/v1/tax/sessions/no-such-session-id")
     assert resp.status_code == 404
     assert resp.json()["code"] == "SESSION_NOT_FOUND"
 
@@ -192,13 +192,13 @@ async def test_e2e_session_not_found(client):
 async def test_e2e_concurrent_sessions(client):
     """Multiple concurrent sessions are fully isolated from each other."""
     async def create_and_complete(filing_status: str) -> dict:
-        resp = await client.post("/v1/sessions", json={"tax_year": 2024})
+        resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024})
         sid = resp.json()["id"]
-        await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+        await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
             "entity_type": "individual",
             "filing_status": filing_status,
         }})
-        resp = await client.post(f"/v1/sessions/{sid}/complete")
+        resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
         return resp.json()
 
     results = await asyncio.gather(
@@ -227,7 +227,7 @@ async def test_e2e_tax_calculation_roundtrip(client):
         {"income": 50_000, "status": "hoh",     "expected_deduction": 21900.0},
     ]
     for tc in test_cases:
-        resp = await client.post("/v1/calculate", json={
+        resp = await client.post("/v1/tax/calculate", json={
             "income": tc["income"],
             "filing_status": tc["status"],
             "tax_year": 2024,
@@ -245,13 +245,13 @@ async def test_e2e_tax_calculation_roundtrip(client):
 @pytest.mark.asyncio
 async def test_e2e_form_lookup_and_detail_attached(client):
     """Completed session should have form_details attached for each form."""
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024})
     sid = resp.json()["id"]
-    await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+    await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
         "entity_type": "individual",
         "has_w2": "yes",
     }})
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     forms = resp.json()["required_forms"]
 
     for form in forms:
@@ -266,13 +266,13 @@ async def test_e2e_form_lookup_and_detail_attached(client):
 @pytest.mark.asyncio
 async def test_e2e_california_state_form(client):
     """California resident should get state form 540 added."""
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024})
     sid = resp.json()["id"]
-    await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {
+    await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {
         "entity_type": "individual",
         "state_of_residence": "CA",
     }})
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     forms = resp.json()["required_forms"]
 
     state_forms = [f for f in forms if f["form_source"] == "state"]
