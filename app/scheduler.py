@@ -10,13 +10,13 @@ The scheduler is started from main.py lifespan and shut down cleanly on exit.
 """
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 
+import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-logger = logging.getLogger("nexus-tax.scheduler")
+logger = structlog.get_logger("nexus-tax.scheduler")
 
 _scheduler: AsyncIOScheduler | None = None
 
@@ -27,7 +27,7 @@ async def _annual_seed_job() -> None:
     from app.engine import reset_rule_engine
     from app.database import get_db
     from app.models import TaxPeriodModel
-    from sqlalchemy import select, update
+    from sqlalchemy import update
 
     new_year = datetime.now().year - 1   # most recent completed year
     close_year = new_year - 2            # close the year two back
@@ -49,7 +49,7 @@ async def _annual_seed_job() -> None:
 
         # Rebuild rule engine so any new rules are picked up
         reset_rule_engine()
-        logger.info("Rule engine reset")
+        logger.info("Rule engine reset after annual seed")
     except Exception as exc:
         logger.error("Annual seed job failed", error=str(exc))
 
