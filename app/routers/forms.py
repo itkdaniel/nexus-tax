@@ -18,7 +18,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import FederalFormModel, FederalFormOut, StateFormModel, StateFormOut
 
-router = APIRouter(prefix="/v1/forms", tags=["forms"])
+router = APIRouter(prefix="/v1/tax/forms", tags=["forms"])
 
 
 @router.get("/federal", response_model=list[FederalFormOut])
