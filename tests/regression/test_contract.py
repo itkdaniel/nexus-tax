@@ -57,7 +57,7 @@ async def test_info_contract(client):
 
 @pytest.mark.asyncio
 async def test_federal_forms_list_contract(client):
-    resp = await client.get("/v1/forms/federal")
+    resp = await client.get("/v1/tax/forms/federal")
     assert resp.status_code == 200
     forms = resp.json()
     assert isinstance(forms, list)
@@ -76,7 +76,7 @@ async def test_federal_forms_list_contract(client):
 
 @pytest.mark.asyncio
 async def test_federal_form_by_number_contract(client):
-    resp = await client.get("/v1/forms/federal/1040")
+    resp = await client.get("/v1/tax/forms/federal/1040")
     assert resp.status_code == 200
     form = resp.json()
     assert form["form_number"] == "1040"
@@ -86,7 +86,7 @@ async def test_federal_form_by_number_contract(client):
 
 @pytest.mark.asyncio
 async def test_federal_form_not_found(client):
-    resp = await client.get("/v1/forms/federal/NONEXISTENT-FORM-XYZ")
+    resp = await client.get("/v1/tax/forms/federal/NONEXISTENT-FORM-XYZ")
     assert resp.status_code == 404
     data = resp.json()
     # Error envelope contract
@@ -97,7 +97,7 @@ async def test_federal_form_not_found(client):
 
 @pytest.mark.asyncio
 async def test_state_forms_list_contract(client):
-    resp = await client.get("/v1/forms/state")
+    resp = await client.get("/v1/tax/forms/state")
     assert resp.status_code == 200
     forms = resp.json()
     assert isinstance(forms, list)
@@ -110,7 +110,7 @@ async def test_state_forms_list_contract(client):
 
 @pytest.mark.asyncio
 async def test_state_forms_by_code_contract(client):
-    resp = await client.get("/v1/forms/state/CA")
+    resp = await client.get("/v1/tax/forms/state/CA")
     assert resp.status_code == 200
     forms = resp.json()
     assert len(forms) == 1
@@ -121,7 +121,7 @@ async def test_state_forms_by_code_contract(client):
 
 @pytest.mark.asyncio
 async def test_state_forms_no_income_tax_state(client):
-    resp = await client.get("/v1/forms/state/TX")
+    resp = await client.get("/v1/tax/forms/state/TX")
     assert resp.status_code == 200
     forms = resp.json()
     assert forms[0]["has_income_tax"] is False
@@ -131,7 +131,7 @@ async def test_state_forms_no_income_tax_state(client):
 
 @pytest.mark.asyncio
 async def test_rate_bundle_contract(client):
-    resp = await client.get("/v1/rates/2024")
+    resp = await client.get("/v1/tax/rates/2024")
     assert resp.status_code == 200
     data = resp.json()
     assert data["tax_year"] == 2024
@@ -146,14 +146,14 @@ async def test_rate_bundle_contract(client):
 
 @pytest.mark.asyncio
 async def test_rate_bundle_year_not_found(client):
-    resp = await client.get("/v1/rates/1985")
+    resp = await client.get("/v1/tax/rates/1985")
     assert resp.status_code == 404
     assert resp.json()["code"] == "YEAR_NOT_FOUND"
 
 
 @pytest.mark.asyncio
 async def test_brackets_filtered_by_status(client):
-    resp = await client.get("/v1/rates/2024/brackets?filing_status=single")
+    resp = await client.get("/v1/tax/rates/2024/brackets?filing_status=single")
     assert resp.status_code == 200
     brackets = resp.json()
     assert len(brackets) == 7
@@ -168,7 +168,7 @@ async def test_brackets_filtered_by_status(client):
 @pytest.mark.asyncio
 async def test_calculate_contract(client):
     resp = await client.post(
-        "/v1/calculate",
+        "/v1/tax/calculate",
         json={"income": 75_000, "filing_status": "single", "tax_year": 2024},
     )
     assert resp.status_code == 200
@@ -193,7 +193,7 @@ async def test_calculate_contract(client):
 @pytest.mark.asyncio
 async def test_calculate_invalid_status_contract(client):
     resp = await client.post(
-        "/v1/calculate",
+        "/v1/tax/calculate",
         json={"income": 50_000, "filing_status": "married", "tax_year": 2024},
     )
     assert resp.status_code == 422
@@ -206,7 +206,7 @@ async def test_calculate_invalid_status_contract(client):
 
 @pytest.mark.asyncio
 async def test_questions_list_contract(client):
-    resp = await client.get("/v1/questions")
+    resp = await client.get("/v1/tax/questions")
     assert resp.status_code == 200
     questions = resp.json()
     assert isinstance(questions, list)
@@ -226,7 +226,7 @@ async def test_questions_list_contract(client):
 
 @pytest.mark.asyncio
 async def test_questions_first_is_entity_type(client):
-    resp = await client.get("/v1/questions")
+    resp = await client.get("/v1/tax/questions")
     assert resp.status_code == 200
     first = resp.json()[0]
     assert first["question_key"] == "entity_type"
@@ -237,7 +237,7 @@ async def test_questions_first_is_entity_type(client):
 @pytest.mark.asyncio
 async def test_session_lifecycle_contract(client):
     # Create
-    resp = await client.post("/v1/sessions", json={"tax_year": 2024, "entity_type": "individual"})
+    resp = await client.post("/v1/tax/sessions", json={"tax_year": 2024, "entity_type": "individual"})
     assert resp.status_code == 201
     session = resp.json()
     assert "id" in session
@@ -248,17 +248,17 @@ async def test_session_lifecycle_contract(client):
     sid = session["id"]
 
     # Get
-    resp = await client.get(f"/v1/sessions/{sid}")
+    resp = await client.get(f"/v1/tax/sessions/{sid}")
     assert resp.status_code == 200
     assert resp.json()["id"] == sid
 
     # Update answers
-    resp = await client.patch(f"/v1/sessions/{sid}/answers", json={"answers": {"entity_type": "individual", "has_w2": "yes"}})
+    resp = await client.patch(f"/v1/tax/sessions/{sid}/answers", json={"answers": {"entity_type": "individual", "has_w2": "yes"}})
     assert resp.status_code == 200
     assert resp.json()["answers"]["entity_type"] == "individual"
 
     # Complete
-    resp = await client.post(f"/v1/sessions/{sid}/complete")
+    resp = await client.post(f"/v1/tax/sessions/{sid}/complete")
     assert resp.status_code == 200
     completed = resp.json()
     assert completed["status"] == "completed"
@@ -269,7 +269,7 @@ async def test_session_lifecycle_contract(client):
 
 @pytest.mark.asyncio
 async def test_session_not_found(client):
-    resp = await client.get("/v1/sessions/nonexistent-id-xyz")
+    resp = await client.get("/v1/tax/sessions/nonexistent-id-xyz")
     assert resp.status_code == 404
     data = resp.json()
     assert data["code"] == "SESSION_NOT_FOUND"
@@ -279,7 +279,7 @@ async def test_session_not_found(client):
 
 @pytest.mark.asyncio
 async def test_periods_list_contract(client):
-    resp = await client.get("/v1/periods")
+    resp = await client.get("/v1/tax/periods")
     assert resp.status_code == 200
     periods = resp.json()
     assert isinstance(periods, list)
@@ -296,12 +296,12 @@ async def test_periods_list_contract(client):
 
 @pytest.mark.asyncio
 async def test_admin_seed_requires_auth(client):
-    resp = await client.post("/v1/admin/seed-year", json={"tax_year": 2024})
+    resp = await client.post("/v1/tax/admin/seed-year", json={"tax_year": 2024})
     assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_admin_seed_with_auth(admin_client):
-    resp = await admin_client.post("/v1/admin/seed-year", json={"tax_year": 2025})
+    resp = await admin_client.post("/v1/tax/admin/seed-year", json={"tax_year": 2025})
     assert resp.status_code == 200
     assert "seeded successfully" in resp.json()["message"]
