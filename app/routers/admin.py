@@ -19,10 +19,10 @@ from app.database import get_db
 from app.models import TaxPeriodModel, TaxPeriodOut
 
 # Public periods endpoints (no auth — matches monolith behaviour)
-periods_router = APIRouter(prefix="/v1/periods", tags=["periods"])
+periods_router = APIRouter(prefix="/v1/tax/periods", tags=["periods"])
 
 # Admin-only endpoints
-admin_router = APIRouter(prefix="/v1/admin", tags=["admin"])
+admin_router = APIRouter(prefix="/v1/tax/admin", tags=["admin"])
 
 
 @periods_router.get("", response_model=list[TaxPeriodOut])
