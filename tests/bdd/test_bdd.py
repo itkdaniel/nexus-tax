@@ -22,6 +22,7 @@ from app.engine import reset_rule_engine
 # Register all scenarios from the feature files
 scenarios("features/questionnaire.feature")
 scenarios("features/brackets.feature")
+scenarios("features/scheduler.feature")
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -240,3 +241,68 @@ def resp_marginal(ctx, rate):
 @then(parsers.parse("the response status code is {code:d}"))
 def resp_status_code(ctx, code):
     assert ctx["calc_resp"].status_code == code
+
+
+# ── Scheduler / Admin Scenarios ───────────────────────────────────────────────
+
+@when(parsers.parse("I trigger a seed for tax year {year:d} as admin"))
+def trigger_seed(test_client, aioloop, ctx, year):
+    ctx["admin_token"] = _make_admin_token("test-secret")
+    resp = _run(aioloop, test_client.post(
+        f"/v1/tax/admin/update-year",
+        json={"tax_year": year},
+        headers={"Authorization": f"Bearer {ctx['admin_token']}"},
+    ))
+    ctx["seed_resp"] = resp
+    ctx["seeded_year"] = year
+
+
+@then(parsers.parse("the tax year {year:d} period should exist"))
+def period_exists(test_client, aioloop, ctx, year):
+    resp = _run(aioloop, test_client.get(f"/v1/tax/periods/{year}"))
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+    assert resp.json()["tax_year"] == year
+
+
+@then(parsers.parse("the {year:d} rate bundle should contain brackets"))
+def rate_bundle_has_brackets(test_client, aioloop, ctx, year):
+    resp = _run(aioloop, test_client.get(f"/v1/tax/rates/{year}"))
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+    assert len(resp.json()["brackets"]) > 0
+
+
+@then("the response should indicate success")
+def seed_success(ctx):
+    assert ctx["seed_resp"].status_code == 200, \
+        f"Expected 200, got {ctx['seed_resp'].status_code}: {ctx['seed_resp'].text}"
+    assert "seeded successfully" in ctx["seed_resp"].json().get("message", "")
+
+
+@then("the 2024 data should still be intact")
+def data_2024_intact(test_client, aioloop, ctx):
+    resp = _run(aioloop, test_client.get("/v1/tax/rates/2024"))
+    assert resp.status_code == 200
+    assert resp.json()["tax_year"] == 2024
+    assert len(resp.json()["brackets"]) == 35
+
+
+def _make_admin_token(secret: str) -> str:
+    """Build a minimal HMAC-SHA256 JWT with role=admin for BDD test auth."""
+    import base64
+    import hashlib
+    import hmac
+    import json
+    import time
+
+    payload = {"sub": "1", "role": "admin", "exp": int(time.time()) + 86400}
+    header = {"alg": "HS256", "typ": "JWT"}
+
+    def b64(d: dict) -> str:
+        return base64.urlsafe_b64encode(
+            json.dumps(d, separators=(",", ":")).encode()
+        ).rstrip(b"=").decode()
+
+    h64, p64 = b64(header), b64(payload)
+    sig = hmac.new(secret.encode(), f"{h64}.{p64}".encode(), hashlib.sha256).digest()
+    s64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
+    return f"{h64}.{p64}.{s64}"
