@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexuspassword
+      POSTGRES_DB: nexustax
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexustax"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nexus-tax:
+    build: .
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://nexus:nexuspassword@postgres:5432/nexustax
+      JWT_SECRET: change-me-in-production
+      DEBUG: "false"
+      DEFAULT_TAX_YEAR: "2024"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  default:
+    name: nexus-network
+    external: true
